@@ -1,0 +1,230 @@
+#!/bin/bash
+#
+# Auto Minecraft build script by The Vive Hive 23-05-2020
+#
+# Note: This script, at the time of release, is for installing Minecraft server.
+#       The original author is not responsible for any malicious doings of others in regard to altering this code.
+#       This script is provided "AS IS".
+#
+#
+
+
+
+# Variables
+BUILDTOOLSLINK="https://hub.spigotmc.org/jenkins/job/BuildTools/lastSuccessfulBuild/artifact/target/BuildTools.jar"
+
+
+
+# Notify user of package installation and needing SUDO password.
+        clear
+        printf '
+        ******
+        Installing required packages...
+        You will need to enter your user password in the next step to allow this.
+        ******
+'
+read -p "Press [ENTER] key to continue..."
+echo ""
+echo ""
+
+
+# Install pre-requisites (java, tmux, git)
+        sudo apt-get install -y openjdk-8-jre-headless git tmux htop
+
+# Clear screen
+        clear
+
+# Prompt for version of Minecraft
+
+printf '
+        1) 1.15.2
+        2) 1.15.1
+        3) 1.15
+        4) 1.14.4
+        5) 1.14.3
+        6) 1.14.2
+        7) 1.14.1
+        8) 1.14
+'
+
+read -p "Type the number that corresponds to the version you need (For example: 1) and press ENTER KEY: " MCVERSION
+
+# Case statement to add version number to REV variable
+case $MCVERSION in
+        1)
+                REV="1.15.2"
+        ;;
+        2)
+                REV="1.15.1"
+        ;;
+        3)
+                REV="1.15"
+        ;;
+        4)
+                REV="1.14.4"
+        ;;
+        5)
+                REV="1.14.3"
+        ;;
+        6)
+                REV="1.14.2"
+        ;;
+        7)
+                REV="1.14.1"
+        ;;
+        8)
+                REV="1.14"
+        ;;
+esac
+
+
+# Place version in file for later use
+        echo "spigot-$REV.jar" > $HOME/MC_Version_Used.txt
+
+
+
+
+# Function for BuildTools section
+
+RunBuildTools(){
+
+# Check if Buildtools already exists and exit
+if [ -d $HOME/BuildTools ]; then
+        clear
+        echo "BuildTools folder already exists."
+        echo "Please delete the BuildTools folder and run this script again."
+        read -p "Press [ENTER] key to exit"
+        exit 1
+fi
+
+
+# Create directory in HOME folder for build process.
+echo "Creating BuildTools directory..."
+mkdir $HOME/BuildTools
+
+# Enter directory
+cd $HOME/BuildTools
+
+# Download Buildtools jar file
+echo "Downloading BuildTools file from internet..."
+wget $BUILDTOOLSLINK
+
+# Run buildtools jar file with revision number obtained from CASE statement
+echo "Running  BuildTools file. This may take a while"; for i in {1..5}; do echo -n "."; sleep 0.3; done ; echo ""
+java -jar BuildTools.jar --rev $REV
+
+}
+
+#
+# END RunBuildTools FUNCTION
+#
+
+
+# Function for creating the minecraft server instace
+
+CreateServer(){
+
+# Create new directory for server files
+        echo "Creating new directory for Minecraft in Home folder ($HOME)"
+        mkdir $HOME/minecraft
+
+# Copy Spigot file to new dir and change to new dir
+        cp $HOME/BuildTools/spigot*.jar $HOME/minecraft
+        cd $HOME/minecraft
+
+# Run spigot. THis will run but fail as eula.txt needs to be changed to "eula=true".
+        if [ `pwd` == "$HOME/minecraft" ]; then
+                echo "Running Spigot server"
+                java -jar spigot-$REV.jar
+        else
+                cd $HOME/minecraft
+                java -jar spigot-$REV.jar
+        fi
+
+
+# sleep 5 seconds
+echo "Loading"; for i in {1..5}; do echo -n "."; sleep 1; done
+echo ""
+
+# Change eula file to TRUE
+        echo "eula=true" > eula.txt
+
+# Run spigot again in TMUX window.
+        tmux new -s Minecraft -d
+        tmux send-keys "cd $HOME/minecraft" ENTER
+        tmux send-keys "java -jar spigot-*.jar" ENTER
+
+
+}
+
+#
+# END CreateServer FUNCTION
+#
+
+
+# Function to check is running
+
+CheckServer(){
+
+
+# Show user new commands for accessing TMUX session and using it.
+echo "********************************"
+
+echo "ALL FINISHED!!!!!!"
+echo "THE FOLLOWING INFO IS IMPORTANT. PLEASE READ IT!"
+echo ""
+echo ""
+
+echo "Spigot has been setup for you. :-) (you're welcome)"
+echo ""
+echo "A program called \"tmux\" has been installed to allow the Spigot server to run in the background."
+echo "To access the server type the following:"
+echo ""
+echo "          tmux attach -t Minecraft"
+echo ""
+echo "To leave the TMux session (Spigot will still be running), use the following Key combination:"
+echo ""
+echo "          Press:"
+echo "                  Control + B"
+echo "          Then Press:"
+echo "                  D"
+echo ""
+echo ""
+read -p "Press [ENTER] key to finish."
+
+
+
+}
+
+#
+# END CheckServer FUNCTION
+#
+
+
+
+
+
+# To use cli arguments
+if [ "$1" == "CreateServer" ]; then
+        CreateServer
+        CheckServer
+        exit
+elif [ "$1" == "CheckServer" ]; then
+        CheckServer
+        exit
+fi
+
+
+
+
+
+# run functions
+
+RunBuildTools
+CreateServer
+CheckServer
+
+
+
+exit
+
